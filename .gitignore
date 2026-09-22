@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project: large datasets are downloaded on first run
+*.hdf5
+*.h5
+data/*.hdf5
+data/*.h5
+index_cache/
+
+# Logs
+*.log
+
+# Temporary outputs
+*.tmp
