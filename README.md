@@ -1,6 +1,6 @@
 # CACC-BCAS：预算可控的稠密向量近似搜索
 
-> 参赛仓库：https://github.com/你的用户名/CACC-BCAS（请上传后替换为实际链接）
+> 参赛仓库：https://github.com/yjrnh/cacc-create
 
 自实现近邻图（HNSW）索引 + 预算约束自适应检索（BCAS），配一套可复现的评测装置。
 纯 CPU，不依赖 GPU，无需下载大模型。
