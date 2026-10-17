@@ -15,6 +15,8 @@ import os
 import sys
 import time
 
+import numpy as np
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
@@ -51,6 +53,20 @@ def index_key(name: str, n: int, m: int, efc: int, **flags) -> str:
     digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:10]
     safe = name.replace("|", "-").replace("/", "-").replace(" ", "")
     return f"{safe}_n{n}_m{m}_efc{efc}_{digest}"
+
+
+def data_fingerprint(train) -> str:
+    """底库内容指纹。
+
+    为什么必须校验内容而不只校验 shape：合成数据的生成顺序是
+    centers → 训练标签 → **查询标签(nq)** → 训练向量 → 查询向量，
+    nq 变化会让随机流偏移，从而产出**不同的底库**。而数据集 name 里不含 nq，
+    于是 nq=200 与 nq=300 会算出同一个缓存键 —— 后者静默复用前者的图，
+    图上节点编号指向另一批向量，召回率会崩到接近 0（实测 0.0237 vs 0.9060），
+    且全程不报任何错。这类错误只有靠内容指纹才能拦住。
+    """
+    arr = np.ascontiguousarray(train)
+    return hashlib.sha1(arr.tobytes()).hexdigest()[:16]
 
 
 def _meta_path(path: str) -> str:
@@ -109,16 +125,25 @@ def build_or_load_index(train, dim: int, name: str, *, m: int, efc: int, seed: i
                             f"期望={train.shape[0]}")
         if int(idx.m) != int(m) or int(idx.ef_construction) != int(efc):
             problems.append(f"m/efc 缓存={idx.m}/{idx.ef_construction} 期望={m}/{efc}")
-        if problems:
-            raise RuntimeError(f"缓存 {os.path.basename(path)} 与本次请求不符：{'；'.join(problems)}。"
-                               "缓存键已失效，请删除该 .pkl 后重跑。")
         bt = None
         if os.path.exists(meta):
             try:
                 with open(meta, "r", encoding="utf-8") as fh:
-                    bt = json.load(fh).get("build_seconds")
+                    _m = json.load(fh)
+                bt = _m.get("build_seconds")
+                fp = _m.get("data_fp")
+                if fp and fp != data_fingerprint(train):
+                    problems.append(f"底库内容指纹 缓存={fp} 期望={data_fingerprint(train)}"
+                                    "（同一 name/n 下数据已变化，通常是 nq 不同导致合成数据随机流偏移）")
+                if not fp:
+                    problems.append("缓存缺少底库指纹（历史缓存），无法确认图与底库匹配")
             except (OSError, ValueError):
                 bt = None
+        else:
+            problems.append("缓存缺少元数据，无法确认图与底库匹配")
+        if problems:
+            raise RuntimeError(f"缓存 {os.path.basename(path)} 与本次请求不符：{'；'.join(problems)}。"
+                               "缓存键已失效，请删除该 .pkl 后重跑。")
         shown = f"{bt:.1f}s（存档值）" if bt is not None else "未知（无元数据）"
         print(f"  [cache] 复用 {os.path.basename(path)}  载入 {load_s:.1f}s | 构图耗时 {shown}")
         return idx, bt
@@ -137,6 +162,7 @@ def build_or_load_index(train, dim: int, name: str, *, m: int, efc: int, seed: i
             "key": key, "dataset": name, "n": int(train.shape[0]), "dim": int(dim),
             "m": m, "ef_construction": efc, "seed": seed,
             "build_seconds": bt, "build_dists": int(idx.counter.count),
+            "data_fp": data_fingerprint(train),
             **{k: hnsw_kwargs.get(k) for k in ("neighbor_mode", "extend_candidates", "keep_pruned")},
         }, fh, ensure_ascii=False, indent=2)
     print(f"  [cache] 已缓存 {os.path.basename(path)}  构图 {bt:.1f}s", flush=True)

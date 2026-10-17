@@ -1,6 +1,6 @@
 # exp4_n50k_pool
 
-数据：synthetic(n=50000,dim=64,clusters=32): n=50,000 nq=500 dim=64 k=10 mem=12.2MB
+数据：synthetic(n=50000,dim=64,clusters=32,nq=500): n=50,000 nq=500 dim=64 k=10 mem=12.2MB
 
 构图参数：m=16 ef_construction=100 seed=0
 BCAS 参数：ef0=16 ef_max=1024 growth=2 gain_tau=[0.0, 0.01, 0.2]

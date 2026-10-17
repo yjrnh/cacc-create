@@ -144,7 +144,10 @@ def make_synthetic(
         centers[a_q] + rng.normal(0.0, spread, size=(nq, dim)), dtype=np.float32
     )
     nb, dist = brute_force_knn(train, queries, k)
-    return Dataset(f"synthetic(n={n},dim={dim},clusters={n_clusters})", train, queries, nb, dist)
+    # nq 必须进 name：它让随机流偏移进而改变 train 本身。两个 nq 若共用同一个 name，
+    # 索引缓存会误判为同一份底库而静默复用错误的图（见 _common.data_fingerprint）。
+    return Dataset(f"synthetic(n={n},dim={dim},clusters={n_clusters},nq={nq})",
+                   train, queries, nb, dist)
 
 
 def download(url: str, dest: str, progress: Optional[Callable[[int, int], None]] = None) -> str:
