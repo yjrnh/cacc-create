@@ -29,3 +29,6 @@ index_cache/
 
 # Temporary outputs
 *.tmp
+
+# 2026-10-17 重跑前的旧口径结果备份（保留本机，不入库，避免与正式 results/ 混淆）
+results_backup_*/
