@@ -124,3 +124,12 @@ python experiments/exp4_budget.py --synthetic --n 50000 --queries 500 \
 - BCAS 的 `gain_tau` 目前是手工阈值，报告需给出它的敏感性分析（换 3 个取值）。
 - BCAS 的预算利用率在大预算下会明显低于 1（实测 0.37），这不是浪费：边际收益早停
   已经判定该查询收敛，继续花预算不会提升召回。报告里必须把"利用率低"解释成收敛而非节约失败。
+
+## 许可与引用
+
+本项目以 **Apache License 2.0** 发布，全文见 [LICENSE](LICENSE)。
+
+引用格式：
+
+> 杨谨如. *BCAS：预算可控的稠密向量近似搜索*（v1.0）. 2026.
+> https://github.com/yjrnh/cacc-create
