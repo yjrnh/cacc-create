@@ -1,7 +1,9 @@
 name: 流量归档 / Archive Traffic
 
-# 每周一 08:00（北京时间）自动抓取 GitHub Traffic 数据并存档
-# GitHub 只保留最近 14 天的每日浏览/克隆数据，本工作流把它沉淀成永久 CSV
+# 每周一 08:00（北京时间）自动抓取 GitHub Traffic 数据并存档到 traffic-archive 分支
+# ⚠️ GitHub 的 traffic 接口需要高于默认 GITHUB_TOKEN 的权限，
+#    因此需要在仓库 Secrets 里配置 TRAFFIC_TOKEN（见 README 说明）。
+#    未配置时本任务会安全跳过，不会报红。
 on:
   schedule:
     - cron: "0 0 * * 1"
@@ -14,37 +16,50 @@ jobs:
   archive:
     runs-on: ubuntu-latest
     steps:
+      - name: 检查令牌
+        id: guard
+        run: |
+          if [ -z "${{ secrets.TRAFFIC_TOKEN }}" ]; then
+            echo "::notice title=已跳过::未配置 TRAFFIC_TOKEN，GitHub 流量接口无法调用。配置后本任务将自动生效。"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 检出默认分支（脚本来自这里）
+        if: steps.guard.outputs.skip == '0'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: 复制脚本到临时目录
+        if: steps.guard.outputs.skip == '0'
         run: cp scripts/archive_traffic.py /tmp/archive_traffic.py
 
       - name: 切换到存档分支 traffic-archive
+        if: steps.guard.outputs.skip == '0'
         run: |
           set -e
           git config user.name "traffic-archive-bot"
           git config user.email "traffic-archive-bot@users.noreply.github.com"
           if git ls-remote --exit-code --heads origin traffic-archive > /dev/null 2>&1; then
-            echo "分支已存在，检出"
             git fetch origin traffic-archive
             git checkout -B traffic-archive origin/traffic-archive
           else
-            echo "首次运行，创建孤立分支"
             git checkout --orphan traffic-archive
             git rm -rf --quiet . || true
             git commit --allow-empty -m "chore: init traffic archive"
           fi
 
       - name: 抓取并合并流量数据
+        if: steps.guard.outputs.skip == '0'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
           REPO: ${{ github.repository }}
         run: python3 /tmp/archive_traffic.py
 
       - name: 提交存档
+        if: steps.guard.outputs.skip == '0'
         run: |
           set -e
           git add metrics
